@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sistem Pekerja</title>
+<style>
+:root {
+  --bg: #0e0e11;
+  --card: #18181d;
+  --accent: #00ffc8;
+  --text: #ffffff;
+  --muted: #9aa0a6;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: linear-gradient(135deg, #0e0e11, #14141a);
+  color: var(--text);
+}
+header {
+  padding: 20px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+nav button {
+  margin-left: 10px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+  background: #101014;
+  color: var(--text);
+  cursor: pointer;
+}
+nav button.active {
+  background: var(--accent);
+  color: #000;
+  font-weight: bold;
+}
+.container {
+  max-width: 900px;
+  margin: auto;
+  padding: 40px 20px;
+}
+.page { display: none; }
+.page.active { display: block; }
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 25px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+label { font-size: 13px; color: var(--muted); }
+input, textarea, select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: #101014;
+  color: var(--text);
+  margin: 10px 0 15px;
+}
+button.action {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent);
+  font-weight: bold;
+  cursor: pointer;
+}
+.preview { text-align: center; color: var(--muted); display: grid; grid-template-columns: repeat(auto-fit,minmax(120px,1fr)); gap:10px; }
+.preview img { width: 100%; border-radius: 12px; margin-top: 10px; object-fit: cover; }
+table { width: 100%; border-collapse: collapse; margin-top:15px; display: block; max-height: 300px; overflow-y: auto; }
+th, td { border: 1px solid var(--muted); padding: 8px; text-align: left; font-size: 13px; }
+th { background: #101014; position: sticky; top: 0; }
+footer { text-align: center; padding: 30px 10px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sistem Pekerja</h1>
+  <nav>
+    <button class="active" onclick="bukaPage('kehadiran', this)">Kehadiran</button>
+    <button onclick="bukaPage('stok', this)">Stok Gambar</button>
+    <button onclick="bukaPage('hubungi', this)">Hubungi</button>
+  </nav>
+</header>
+
+<div class="container">
+
+<!-- BUTTON LOGIN ADMIN -->
+<div style="text-align:center;margin-bottom:15px;">
+  <button class="action" id="adminLoginBtn" onclick="loginAdmin()">Login Admin</button>
+</div>
+
+<!-- PAGE KEHADIRAN -->
+<div id="kehadiran" class="page active">
+  <div class="card">
+    <h3>Kehadiran Pekerja</h3>
+    <label>Nama</label>
+    <input type="text" id="nama" required>
+
+    <label>Tarikh</label>
+    <input type="date" id="tarikh" required>
+
+    <label>Status</label>
+    <select id="status" required>
+      <option value="">-- Pilih Status --</option>
+      <option value="Hadir">Hadir</option>
+      <option value="Tidak Hadir">Tidak Hadir</option>
+    </select>
+
+    <button class="action" onclick="hantarKehadiran()">Hantar ke WhatsApp</button>
+    <button class="action" id="exportCSVBtn" style="margin-top:10px;background:#ff9500;" onclick="exportCSV()">Export CSV</button>
+    <button class="action" id="padamSemuaKehadiranBtn" style="margin-top:10px;background:red;" onclick="padamSemuaKehadiran()">Padam Semua Kehadiran</button>
+
+    <h4>Senarai Kehadiran</h4>
+    <table id="jadualKehadiran">
+      <thead>
+        <tr><th>Nama</th><th>Tarikh</th><th>Status</th><th>Tindakan</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- PAGE STOK GAMBAR -->
+<div id="stok" class="page">
+  <div class="card">
+    <h3>Stok Gambar</h3>
+    <input type="file" id="fileInput" accept="image/*" multiple onchange="previewGambar(event)">
+    <div class="preview" id="preview">Tiada gambar dipilih</div>
+    <button class="action" id="padamBtn" style="background:red;color:#fff;margin-top:10px;" onclick="padamGambar()">Padam Semua Gambar</button>
+    <button class="action" id="hantarGambarBtn" style="background:#00aaff;color:#fff;margin-top:10px" onclick="hantarGambar()">Hantar Semua ke WhatsApp</button>
+  </div>
+</div>
+
+<!-- PAGE HUBUNGI -->
+<div id="hubungi" class="page">
+  <div class="card">
+    <h3>Hubungi Pengurusan</h3>
+    <textarea id="mesejPengurusan" rows="5" placeholder="Tulis mesej anda..." required></textarea>
+    <button class="action" onclick="hubungiPengurusan()">Hantar WhatsApp</button>
+  </div>
+</div>
+
+</div>
+<footer>© 2026 Sistem Pekerja</footer>
+
+<script>
+/* ================= ADMIN LOGIN ================= */
+let isAdmin = false;
+
+// Login admin
+function loginAdmin(){
+  const password = prompt('Masukkan kata laluan admin:');
+  if(password === 'lostcityadmin'){
+    isAdmin = true;
+    alert('Admin mode diaktifkan!');
+    updateAdminUI();
+  } else {
+    alert('Kata laluan salah!');
+  }
+}
+
+// Update UI admin
+function updateAdminUI(){
+  if(isAdmin){
+    document.getElementById('padamBtn').style.display = 'inline-block';
+    document.getElementById('hantarGambarBtn').style.display = 'inline-block';
+    document.getElementById('exportCSVBtn').style.display = 'inline-block';
+    document.getElementById('padamSemuaKehadiranBtn').style.display = 'inline-block';
+    document.getElementById('adminLoginBtn').style.display = 'none';
+  } else {
+    document.getElementById('padamBtn').style.display = 'none';
+    document.getElementById('hantarGambarBtn').style.display = 'none';
+    document.getElementById('exportCSVBtn').style.display = 'none';
+    document.getElementById('padamSemuaKehadiranBtn').style.display = 'none';
+    document.getElementById('adminLoginBtn').style.display = 'inline-block';
+  }
+  renderGambar();
+  kemaskiniJadual();
+}
+
+/* ================= NAV PAGE ================= */
+function bukaPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+/* ================= STOK GAMBAR ================= */
+let currentImages = JSON.parse(localStorage.getItem('stokGambar')) || [];
+
+function renderGambar() {
+  const preview = document.getElementById('preview');
+  preview.innerHTML = '';
+  if(currentImages.length === 0){
+    preview.textContent = 'Tiada gambar dipilih';
+    return;
+  }
+
+  currentImages.forEach((imgObj,index)=>{
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'relative';
+
+    const img = document.createElement('img');
+    img.src = imgObj.dataUrl;
+    img.style.width = '100%';
+    img.style.borderRadius = '12px';
+
+    const btn = document.createElement('button');
+    btn.textContent = 'X';
+    btn.style.position = 'absolute';
+    btn.style.top = '5px';
+    btn.style.right = '5px';
+    btn.style.background = 'red';
+    btn.style.color = '#fff';
+    btn.style.border = 'none';
+    btn.style.borderRadius = '50%';
+    btn.style.width = '22px';
+    btn.style.height = '22px';
+    btn.style.cursor = 'pointer';
+    btn.style.display = isAdmin ? 'block':'none';
+    btn.onclick = () => {
+      if(!isAdmin){ alert('Akses ditolak: Mod Admin sahaja'); return; }
+      currentImages.splice(index,1);
+      localStorage.setItem('stokGambar', JSON.stringify(currentImages));
+      renderGambar();
+    }
+
+    wrapper.appendChild(img);
+    wrapper.appendChild(btn);
+    preview.appendChild(wrapper);
+  });
+}
+renderGambar();
+
+function previewGambar(event){
+  const files = Array.from(event.target.files);
+  if(files.length === 0) return;
+
+  files.forEach(file=>{
+    if(!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = e=>{
+      currentImages.push({name:file.name, dataUrl:e.target.result});
+      localStorage.setItem('stokGambar', JSON.stringify(currentImages));
+      renderGambar();
+    }
+    reader.readAsDataURL(file);
+  });
+}
+
+function padamGambar(){
+  if(!isAdmin){ alert('Akses ditolak: Mod Admin sahaja'); return; }
+  if(confirm('Padam semua gambar?')){
+    currentImages = [];
+    localStorage.removeItem('stokGambar');
+    renderGambar();
+    document.getElementById('fileInput').value = '';
+  }
+}
+
+function hantarGambar(){
+  if(!isAdmin){ alert('Akses ditolak: Mod Admin sahaja'); return; }
+  if(currentImages.length===0){ alert('Tiada gambar untuk dihantar'); return; }
+
+  let msg = 'Senarai Gambar Stok:\n';
+  currentImages.forEach((img,i)=>{
+    msg += `${i+1}. ${img.name}\n`;
+  });
+  msg += '\nSila muat turun gambar melalui server atau lampirkan secara manual.';
+  window.open(`https://wa.me/60185776579?text=${encodeURIComponent(msg)}`,'_blank');
+}
+
+/* ================= KEHADIRAN ================= */
+let senaraiKehadiran = JSON.parse(localStorage.getItem('kehadiran')) || [];
+
+function kemaskiniJadual() {
+  const tbody = document.getElementById('jadualKehadiran').querySelector('tbody');
+  tbody.innerHTML = '';
+
+  senaraiKehadiran.forEach((item,index)=>{
+    const row = document.createElement('tr');
+    
+    let actionBtn = '';
+    if(isAdmin){
+      actionBtn = `<td><button onclick="padamKehadiran(${index})" style="padding:3px 8px;background:red;color:#fff;border:none;border-radius:5px;cursor:pointer;">Padam</button></td>`;
+    } else {
+      actionBtn = '<td></td>';
+    }
+
+    row.innerHTML = `<td>${item.nama}</td><td>${item.tarikh}</td><td>${item.status}</td>${actionBtn}`;
+    tbody.appendChild(row);
+  });
+}
+kemaskiniJadual();
+
+function hantarKehadiran(){
+  const nama = document.getElementById('nama').value.trim();
+  const tarikh = document.getElementById('tarikh').value;
+  const status = document.getElementById('status').value;
+
+  if(!nama || !tarikh || !status){ alert('Sila isi semua maklumat'); return; }
+
+  senaraiKehadiran.push({nama, tarikh, status});
+  localStorage.setItem('kehadiran', JSON.stringify(senaraiKehadiran));
+  kemaskiniJadual();
+
+  const msg = `Kehadiran Pekerja\nNama: ${nama}\nTarikh: ${tarikh}\nStatus: ${status}`;
+  window.open(`https://wa.me/60185776579?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+function padamKehadiran(index){
+  if(!isAdmin){ alert('Akses ditolak: Mod Admin sahaja'); return; }
+  if(confirm('Padam rekod kehadiran ini?')){
+    senaraiKehadiran.splice(index,1);
+    localStorage.setItem('kehadiran', JSON.stringify(senaraiKehadiran));
+    kemaskiniJadual();
+  }
+}
+
+function padamSemuaKehadiran(){
+  if(!isAdmin){ alert('Akses ditolak: Mod Admin sahaja'); return; }
+  if(confirm('Padam semua rekod kehadiran?')){
+    senaraiKehadiran = [];
+    localStorage.removeItem('kehadiran');
+    kemaskiniJadual();
+  }
+}
+
+// Export CSV
+function exportCSV(){
+  if(senaraiKehadiran.length===0){ alert('Tiada data untuk eksport'); return; }
+  
+  const rows=[['Nama','Tarikh','Status'], ...senaraiKehadiran.map(i=>[i.nama,i.tarikh,i.status])];
+  let csvContent = rows.map(e=>e.join(",")).join("\n");
+  let blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+  
+  const link=document.createElement("a");
+  const url=URL.createObjectURL(blob);
+  link.setAttribute("href",url);
+  link.setAttribute("download","kehadiran.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/* ================= HUBUNGI ================= */
+function hubungiPengurusan(){
+  const nama=document.getElementById('nama').value.trim();
+  const tarikh=document.getElementById('tarikh').value;
+  const msgInput=document.getElementById('mesejPengurusan').value.trim();
+
+  const today=new Date();
+  const options={year:'numeric',month:'long',day:'numeric'};
+  const tarikhFormat=tarikh||today.toLocaleDateString('ms-MY',options);
+  const namaMsg=nama||'Customer Service / Apply Kerja / Personal Chat';
+
+  if(!msgInput){ alert('Sila tulis mesej'); return; }
+
+  const msg=`Nama: ${namaMsg}\nTarikh: ${tarikhFormat}\nMesej: ${msgInput}`;
+  window.open(`https://wa.me/60185776579?text=${encodeURIComponent(msg)}`,'_blank');
+}
+
+document.addEventListener('DOMContentLoaded', updateAdminUI);
+</script>
+
+</body>
+</html>
